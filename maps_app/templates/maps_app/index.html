@@ -127,6 +127,52 @@
         </div>
     </div>
 
+    <div id="share-modal" class="share-modal">
+        <div class="share-content">
+            <div class="share-header">
+                <h2>Share</h2>
+                <button class="close-share" onclick="closeShareModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="share-tabs">
+                <button class="tab-button active" onclick="switchTab('send-link')">Send a link</button>
+                <button class="tab-button" onclick="switchTab('embed-map')">Embed a map</button>
+            </div>
+
+            <div class="share-preview">
+                <img id="place-thumbnail" class="place-thumbnail" src="" alt="">
+                <div class="preview-info">
+                    <div id="share-place-name" class="share-place-name"></div>
+                    <div id="share-place-address" class="share-place-address"></div>
+                </div>
+            </div>
+
+            <div class="share-link-section">
+                <div class="link-container">
+                    <input type="text" id="share-link" readonly>
+                    <button onclick="copyLink()" class="copy-button">COPY LINK</button>
+                </div>
+                
+                <div class="share-options">
+                    <button class="share-option">
+                        <i class="fab fa-whatsapp"></i>
+                        <span>WhatsApp</span>
+                    </button>
+                    <button class="share-option">
+                        <i class="fab fa-twitter"></i>
+                        <span>X</span>
+                    </button>
+                    <button class="share-option">
+                        <i class="fas fa-envelope"></i>
+                        <span>Gmail</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="map"></div>
 
     <script>
@@ -599,10 +645,89 @@
                 }
             });
         }
+
+        // Add these functions inside your existing <script> tag
+        function showShareModal() {
+            const modal = document.getElementById('share-modal');
+            const placeDetails = document.querySelector('.place-details');
+            
+            // Get current place details
+            const placeName = placeDetails.querySelector('.place-name').textContent;
+            const placeAddress = placeDetails.querySelector('.place-address').textContent;
+            const placeImage = placeDetails.querySelector('.place-image').src;
+            
+            // Update share modal content
+            document.getElementById('share-place-name').textContent = placeName;
+            document.getElementById('share-place-address').textContent = placeAddress;
+            document.getElementById('place-thumbnail').src = placeImage;
+            
+            // Generate share link
+            const shareLink = window.location.href + '?place=' + encodeURIComponent(placeName);
+            document.getElementById('share-link').value = shareLink;
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeShareModal() {
+            document.getElementById('share-modal').style.display = 'none';
+        }
+
+        function copyLink() {
+            const linkInput = document.getElementById('share-link');
+            linkInput.select();
+            document.execCommand('copy');
+            
+            const copyButton = document.querySelector('.copy-button');
+            const originalText = copyButton.textContent;
+            copyButton.textContent = 'COPIED';
+            setTimeout(() => {
+                copyButton.textContent = originalText;
+            }, 2000);
+        }
+
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-button');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Add click event listener to share button
+        document.addEventListener('DOMContentLoaded', function() {
+            const shareButton = document.querySelector('.action-button i.fas.fa-share-alt').parentElement;
+            shareButton.addEventListener('click', showShareModal);
+        });
+
+        // Add social sharing functions
+        function shareViaWhatsApp() {
+            const text = document.getElementById('share-link').value;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        function shareViaTwitter() {
+            const text = document.getElementById('share-link').value;
+            window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        function shareViaGmail() {
+            const text = document.getElementById('share-link').value;
+            const subject = document.getElementById('share-place-name').textContent;
+            window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        // Add click event listeners to share options
+        document.addEventListener('DOMContentLoaded', function() {
+            const whatsappButton = document.querySelector('.share-option i.fab.fa-whatsapp').parentElement;
+            const twitterButton = document.querySelector('.share-option i.fab.fa-twitter').parentElement;
+            const gmailButton = document.querySelector('.share-option i.fas.fa-envelope').parentElement;
+            
+            whatsappButton.addEventListener('click', shareViaWhatsApp);
+            twitterButton.addEventListener('click', shareViaTwitter);
+            gmailButton.addEventListener('click', shareViaGmail);
+        });
     </script>
 
     <!-- Load the Google Maps JavaScript API with Places library -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8GyMF3t_FzDKlB2_M5z0jft-cU_mz6Ak&libraries=places&callback=initMap" 
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initMap" 
             async defer></script>
 </body>
 </html> 

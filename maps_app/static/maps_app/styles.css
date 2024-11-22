@@ -648,4 +648,154 @@ body, html {
 .adp-summary {
     display: none !important;
 }
+
+/* Share Modal Styles */
+.share-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+.share-content {
+    background: white;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.share-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e6e6e6;
+}
+
+.share-header h2 {
+    font-size: 22px;
+    color: #202124;
+    margin: 0;
+    font-weight: 400;
+}
+
+.close-share {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #5f6368;
+    cursor: pointer;
+    padding: 8px;
+}
+
+.share-tabs {
+    display: flex;
+    border-bottom: 1px solid #e6e6e6;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #5f6368;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-button.active {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+}
+
+.share-preview {
+    display: flex;
+    padding: 16px;
+    gap: 16px;
+    border-bottom: 1px solid #e6e6e6;
+}
+
+.place-thumbnail {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.preview-info {
+    flex: 1;
+}
+
+.share-place-name {
+    font-size: 16px;
+    color: #202124;
+    margin-bottom: 4px;
+}
+
+.share-place-address {
+    font-size: 14px;
+    color: #5f6368;
+}
+
+.share-link-section {
+    padding: 16px;
+}
+
+.link-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.link-container input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #e6e6e6;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #202124;
+    background: #f8f9fa;
+}
+
+.copy-button {
+    background: none;
+    border: none;
+    color: #1a73e8;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0 16px;
+}
+
+.share-options {
+    display: flex;
+    justify-content: space-around;
+    padding: 0 16px 16px;
+}
+
+.share-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #5f6368;
+}
+
+.share-option i {
+    font-size: 24px;
+}
+
+.share-option span {
+    font-size: 12px;
+}
   
