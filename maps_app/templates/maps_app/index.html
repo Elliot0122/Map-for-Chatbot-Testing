@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Maps Example</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'maps_app/styles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="search-container">
+        <div class="search-wrapper">
+            <input type="text" id="search-input" placeholder="Search location...">
+            <button id="search-button" aria-label="Search">
+                <i class="fas fa-search"></i>
+            </button>
+            <div id="error-message"></div>
+        </div>
+        <div id="search-results" class="search-results"></div>
+    </div>
+
+    <div id="directions-panel" class="directions-panel">
+        <div class="directions-header">
+            <button class="back-button" onclick="closeDirections()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="directions-title">Directions</div>
+        </div>
+        
+        <div class="travel-modes">
+            <button class="mode-button active" data-mode="DRIVING">
+                <i class="fas fa-car"></i>
+                <span>Drive</span>
+            </button>
+            <button class="mode-button" data-mode="TRANSIT">
+                <i class="fas fa-subway"></i>
+                <span>Transit</span>
+            </button>
+            <button class="mode-button" data-mode="WALKING">
+                <i class="fas fa-walking"></i>
+                <span>Walk</span>
+            </button>
+            <button class="mode-button" data-mode="BICYCLING">
+                <i class="fas fa-bicycle"></i>
+                <span>Bike</span>
+            </button>
+        </div>
+
+        <div class="directions-inputs">
+            <div class="input-group origin">
+                <i class="fas fa-circle origin-icon"></i>
+                <input type="text" id="origin-input" placeholder="Choose starting point">
+            </div>
+            <div class="input-group destination">
+                <i class="fas fa-map-marker-alt dest-icon"></i>
+                <input type="text" id="destination-input" placeholder="Choose destination">
+            </div>
+            <div class="add-destination">
+                <i class="fas fa-plus"></i>
+                <span>Add destination</span>
+            </div>
+        </div>
+        
+        <div id="directions-results"></div>
+    </div>
+
+    <div id="place-details" class="place-details">
+        <button class="close-button" onclick="closePlaceDetails()">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="place-details-content">
+            <div class="place-header">
+                <img class="place-image" src="" alt="">
+                <h1 class="place-name"></h1>
+                <div class="place-rating"></div>
+                <div class="place-type"></div>
+            </div>
+            
+            <div class="place-actions">
+                <button class="action-button" onclick="showDirectionsPanel()">
+                    <i class="fas fa-directions"></i>
+                    <span>Directions</span>
+                </button>
+                <button class="action-button">
+                    <i class="far fa-bookmark"></i>
+                    <span>Save</span>
+                </button>
+                <button class="action-button">
+                    <i class="fas fa-location-arrow"></i>
+                    <span>Nearby</span>
+                </button>
+                <button class="action-button">
+                    <i class="fas fa-mobile-alt"></i>
+                    <span>Send to phone</span>
+                </button>
+                <button class="action-button">
+                    <i class="fas fa-share-alt"></i>
+                    <span>Share</span>
+                </button>
+            </div>
+
+            <div class="place-info">
+                <div class="info-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span class="place-address"></span>
+                </div>
+                <div class="info-item place-plus-code">
+                    <i class="fas fa-map"></i>
+                    <span></span>
+                </div>
+                <div class="info-item place-history">
+                    <i class="fas fa-history"></i>
+                    <span>Your Maps activity</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-tag"></i>
+                    <span>Add a label</span>
+                </div>
+            </div>
+
+            <div class="place-popular-times">
+                <h3>Popular times</h3>
+                <div class="popular-times-graph"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        let map;
+        let marker;
+        let errorMessageTimeout;
+        let autocomplete;
+        let directionsService;
+        let directionsRenderer;
+
+        function initMap() {
+            const defaultLocation = { lat: 40.7128, lng: -74.0060 };
+
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: defaultLocation,
+                zoom: 16,
+                disableDefaultUI: true,
+                zoomControl: true,
+                zoomControlOptions: {
+                    position: google.maps.ControlPosition.RIGHT_BOTTOM
+                }
+            });
+
+            marker = new google.maps.Marker({
+                position: defaultLocation,
+                map: map,
+                title: 'Location'
+            });
+
+            // Initialize Places Autocomplete
+            const searchInput = document.getElementById('search-input');
+            const autocompleteResults = document.getElementById('autocomplete-results');
+            
+            const searchBox = new google.maps.places.SearchBox(searchInput);
+
+            // Listen for the event when the user selects a prediction
+            searchBox.addListener('places_changed', () => {
+                const places = searchBox.getPlaces();
+                if (places.length === 0) return;
+
+                // Instead of handling the place directly, just trigger performSearch
+                performSearch();
+            });
+
+            // Bias searchbox results towards current map viewport
+            map.addListener('bounds_changed', () => {
+                searchBox.setBounds(map.getBounds());
+            });
+
+            // Get user's location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+
+                        const geocoder = new google.maps.Geocoder();
+                        geocoder.geocode({ location: userLocation }, (results, status) => {
+                            if (status === 'OK') {
+                                let cityBounds;
+                                let cityName = '';
+
+                                for (const result of results) {
+                                    for (const component of result.address_components) {
+                                        if (component.types.includes('locality')) {
+                                            cityName = component.long_name;
+                                            cityBounds = result.geometry.viewport;
+                                            break;
+                                        }
+                                    }
+                                    if (cityName) break;
+                                }
+
+                                map.setCenter(userLocation);
+                                map.setZoom(16);
+                                marker.setPosition(userLocation);
+                                marker.setTitle(cityName || 'Current Location');
+                            }
+                        });
+                    },
+                    (error) => {
+                        console.log('Geolocation error:', error);
+                    }
+                );
+            }
+        }
+
+        // Modify the performSearch function to handle all search cases
+        function performSearch() {
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput.value.trim();
+            
+            if (!query) return;
+
+            // Use Places Service for text search
+            const service = new google.maps.places.PlacesService(map);
+            const request = {
+                query: query,
+                fields: ['name', 'geometry', 'formatted_address', 'place_id']
+            };
+
+            service.textSearch(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    displaySearchResults(results);
+                    
+                    // Center map on the first result if available
+                    if (results[0] && results[0].geometry) {
+                        map.setCenter(results[0].geometry.location);
+                        map.setZoom(16);
+                        marker.setPosition(results[0].geometry.location);
+                        marker.setTitle(results[0].name);
+                    }
+                }
+            });
+        }
+
+        // Keep the event listeners as they are
+        document.getElementById('search-button').addEventListener('click', performSearch);
+        
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        function displaySearchResults(places) {
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.innerHTML = '';
+
+            places.slice(0, 5).forEach(place => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+
+                const service = new google.maps.places.PlacesService(map);
+                service.getDetails({
+                    placeId: place.place_id,
+                    fields: ['name', 'rating', 'formatted_address', 'price_level', 'opening_hours', 'user_ratings_total', 'photos', 'types']
+                }, (placeDetails, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK) {
+                        const photoUrl = placeDetails.photos ? 
+                            placeDetails.photos[0].getUrl({ maxWidth: 120, maxHeight: 120 }) : '';
+                        
+                        resultItem.innerHTML = `
+                            <div class="result-content">
+                                <div class="result-main-info">
+                                    <div class="result-text">
+                                        <div class="result-name">${place.name}</div>
+                                        <div class="result-rating">
+                                            ${placeDetails.rating ? `
+                                                <span class="rating-score">${placeDetails.rating}</span>
+                                                <span class="rating-stars">
+                                                    ${generateStars(placeDetails.rating)}
+                                                </span>
+                                                <span class="rating-count">(${placeDetails.user_ratings_total})</span>
+                                            ` : ''}
+                                        </div>
+                                        <div class="result-details">
+                                            ${generatePriceLevel(placeDetails.price_level)}
+                                            ${getPlaceType(placeDetails.types)} · 
+                                            <span class="result-address">${place.formatted_address}</span>
+                                        </div>
+                                        <div class="result-status">
+                                            ${placeDetails.opening_hours ? 
+                                                (placeDetails.opening_hours.isOpen() ? 
+                                                    '<span class="open">Open</span>' : 
+                                                    '<span class="closed">Closes soon</span>'
+                                                ) : ''
+                                            }
+                                            ${placeDetails.opening_hours?.periods ? 
+                                                ` · ${formatOpeningHours(placeDetails.opening_hours)}` : 
+                                                ''
+                                            }
+                                        </div>
+                                    </div>
+                                    ${photoUrl ? `
+                                        <div class="result-photo">
+                                            <img src="${photoUrl}" alt="${place.name}">
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+
+                        resultItem.addEventListener('click', () => {
+                            showPlaceDetails(place.place_id);
+                            map.setCenter(place.geometry.location);
+                            map.setZoom(16);
+                            marker.setPosition(place.geometry.location);
+                            marker.setTitle(place.name);
+                        });
+                    }
+                });
+
+                resultsDiv.appendChild(resultItem);
+            });
+        }
+
+        function generateStars(rating) {
+            const fullStars = Math.floor(rating);
+            const halfStar = rating % 1 >= 0.5;
+            let starsHtml = '';
+            
+            for (let i = 0; i < fullStars; i++) {
+                starsHtml += '<i class="fas fa-star"></i>';
+            }
+            if (halfStar) {
+                starsHtml += '<i class="fas fa-star-half-alt"></i>';
+            }
+            const emptyStars = 5 - Math.ceil(rating);
+            for (let i = 0; i < emptyStars; i++) {
+                starsHtml += '<i class="far fa-star"></i>';
+            }
+            
+            return starsHtml;
+        }
+
+        function generatePriceLevel(priceLevel) {
+            if (!priceLevel) return '';
+            return `<span class="price-level">${'$'.repeat(priceLevel)}</span> · `;
+        }
+
+        function getPlaceType(types) {
+            const typeMapping = {
+                'restaurant': 'Restaurant',
+                'cafe': 'Café',
+                'bar': 'Bar',
+                // Add more mappings as needed
+            };
+            
+            for (const type of types) {
+                if (typeMapping[type]) {
+                    return typeMapping[type];
+                }
+            }
+            return '';
+        }
+
+        function formatOpeningHours(hours) {
+            if (!hours.periods) return '';
+            const today = new Date().getDay();
+            const period = hours.periods[today];
+            if (!period) return '';
+            
+            return `Opens ${period.open?.time || ''} ${period.close ? '- ' + period.close.time : ''}`;
+        }
+
+        // Add these new functions for the photo carousel
+        function slidePhotos(carousel, direction) {
+            const container = carousel.querySelector('.photo-container');
+            const slides = carousel.querySelectorAll('.photo-slide');
+            const dots = carousel.querySelectorAll('.dot');
+            
+            let currentSlide = parseInt(container.dataset.currentSlide || 0);
+            currentSlide = (currentSlide + direction + slides.length) % slides.length;
+            
+            container.style.transform = `translateX(-${currentSlide * 100}%)`;
+            container.dataset.currentSlide = currentSlide;
+            
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+            });
+        }
+
+        function currentSlide(carousel, index) {
+            const container = carousel.querySelector('.photo-container');
+            const dots = carousel.querySelectorAll('.dot');
+            
+            container.style.transform = `translateX(-${index * 100}%)`;
+            container.dataset.currentSlide = index;
+            
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+        }
+
+        // Add these new functions for place details
+        function showPlaceDetails(placeId) {
+            const service = new google.maps.places.PlacesService(map);
+            service.getDetails({
+                placeId: placeId,
+                fields: ['name', 'rating', 'formatted_address', 'photos', 'types', 
+                        'opening_hours', 'user_ratings_total', 'plus_code']
+            }, (place, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    const detailsPanel = document.getElementById('place-details');
+                    
+                    // Update place details content
+                    detailsPanel.querySelector('.place-name').textContent = place.name;
+                    detailsPanel.querySelector('.place-address').textContent = place.formatted_address;
+                    
+                    if (place.photos && place.photos.length > 0) {
+                        detailsPanel.querySelector('.place-image').src = 
+                            place.photos[0].getUrl({ maxWidth: 800, maxHeight: 400 });
+                    }
+                    
+                    if (place.rating) {
+                        detailsPanel.querySelector('.place-rating').innerHTML = `
+                            <span class="rating-score">${place.rating}</span>
+                            <span class="rating-stars">${generateStars(place.rating)}</span>
+                            <span class="rating-count">(${place.user_ratings_total})</span>
+                        `;
+                    }
+
+                    if (place.plus_code) {
+                        detailsPanel.querySelector('.place-plus-code span').textContent = 
+                            place.plus_code.compound_code;
+                    }
+
+                    // Show the panel
+                    detailsPanel.classList.add('active');
+                    document.querySelector('.search-container').classList.add('with-details');
+                }
+            });
+        }
+
+        function closePlaceDetails() {
+            document.getElementById('place-details').classList.remove('active');
+            document.querySelector('.search-container').classList.remove('with-details');
+        }
+
+        function initDirectionsService() {
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({
+                map: map,
+                panel: document.getElementById('directions-results')
+            });
+        }
+
+        function showDirectionsPanel() {
+            // Hide search results and place details
+            document.getElementById('search-results').innerHTML = '';
+            document.getElementById('place-details').classList.remove('active');
+            
+            // Show directions panel
+            const directionsPanel = document.getElementById('directions-panel');
+            directionsPanel.classList.add('active');
+            
+            // Initialize directions service if not already done
+            if (!directionsService) {
+                initDirectionsService();
+            }
+
+            // Pre-fill destination with the current place
+            const destinationInput = document.getElementById('destination-input');
+            destinationInput.value = document.querySelector('.place-name').textContent;
+
+            // Handle origin input
+            const originInput = document.getElementById('origin-input');
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const geocoder = new google.maps.Geocoder();
+                        const latlng = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        
+                        geocoder.geocode({ location: latlng }, (results, status) => {
+                            if (status === 'OK' && results[0]) {
+                                originInput.value = results[0].formatted_address;
+                                calculateAndDisplayRoute();
+                            }
+                        });
+                    },
+                    () => {
+                        // If user denies location access or it fails
+                        originInput.placeholder = 'Enter starting point';
+                    }
+                );
+            } else {
+                // If geolocation is not supported
+                originInput.placeholder = 'Enter starting point';
+            }
+
+            // Initialize autocomplete for inputs
+            initializeAutocomplete('origin-input');
+            initializeAutocomplete('destination-input');
+
+            // Add event listeners for travel mode buttons
+            document.querySelectorAll('.mode-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    document.querySelector('.mode-button.active').classList.remove('active');
+                    button.classList.add('active');
+                    calculateAndDisplayRoute();
+                });
+            });
+
+            // Update search container position
+            document.querySelector('.search-container').classList.add('with-directions');
+        }
+
+        function closeDirections() {
+            document.getElementById('directions-panel').classList.remove('active');
+            document.querySelector('.search-container').classList.remove('with-directions');
+            if (directionsRenderer) {
+                directionsRenderer.setMap(null);
+            }
+        }
+
+        function initializeAutocomplete(inputId) {
+            const input = document.getElementById(inputId);
+            const autocomplete = new google.maps.places.Autocomplete(input);
+            autocomplete.addListener('place_changed', calculateAndDisplayRoute);
+        }
+
+        function calculateAndDisplayRoute() {
+            const origin = document.getElementById('origin-input').value;
+            const destination = document.getElementById('destination-input').value;
+            const mode = document.querySelector('.mode-button.active').dataset.mode;
+
+            if (!origin || !destination) return;
+
+            const request = {
+                origin: origin,
+                destination: destination,
+                travelMode: google.maps.TravelMode[mode],
+                provideRouteAlternatives: true  // Request alternative routes
+            };
+
+            directionsService.route(request, (result, status) => {
+                if (status === 'OK') {
+                    // Customize the route display
+                    const routeOptions = {
+                        map: map,
+                        panel: document.getElementById('directions-results'),
+                        polylineOptions: {
+                            strokeColor: '#1a73e8',
+                            strokeWeight: 6,  // Thicker line
+                            strokeOpacity: 0.8
+                        },
+                        suppressMarkers: false,
+                        preserveViewport: false
+                    };
+                    
+                    directionsRenderer.setOptions(routeOptions);
+                    directionsRenderer.setDirections(result);
+
+                    // Display simplified route options
+                    const resultsDiv = document.getElementById('directions-results');
+                    resultsDiv.innerHTML = '<div class="suggested-routes-header">Suggested routes:</div>';
+
+                    result.routes.forEach((route, index) => {
+                        const leg = route.legs[0];
+                        const routeDiv = document.createElement('div');
+                        routeDiv.className = 'route-option' + (index === 0 ? ' selected' : '');
+                        
+                        routeDiv.innerHTML = `
+                            <div class="route-info">
+                                <div class="route-name">
+                                    ${route.summary} ${leg.distance.text}
+                                </div>
+                                <div class="route-eta">
+                                    About ${leg.duration.text}
+                                </div>
+                            </div>
+                        `;
+
+                        routeDiv.addEventListener('click', () => {
+                            document.querySelectorAll('.route-option').forEach(opt => {
+                                opt.classList.remove('selected');
+                            });
+                            routeDiv.classList.add('selected');
+                            directionsRenderer.setRouteIndex(index);
+                        });
+
+                        resultsDiv.appendChild(routeDiv);
+                    });
+                }
+            });
+        }
+    </script>
+
+    <!-- Load the Google Maps JavaScript API with Places library -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8GyMF3t_FzDKlB2_M5z0jft-cU_mz6Ak&libraries=places&callback=initMap" 
+            async defer></script>
+</body>
+</html> 
