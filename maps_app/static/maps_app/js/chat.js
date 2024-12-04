@@ -6,12 +6,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendMessage = document.getElementById('send-message');
     const chatMessages = document.getElementById('chat-messages');
 
-    // Add initial welcome message
-    addMessage("Hello! How can I help you with your location search today?", false);
+    const API_URL = 'http://localhost:9000';  // FastAPI server URL
 
-    chatIcon.addEventListener('click', () => {
+    chatIcon.addEventListener('click', async () => {
         chatContainer.classList.remove('hidden');
         chatInput.focus();
+
+        try {
+            // Call the FastAPI endpoint directly
+            const response = await fetch(`${API_URL}/init`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const data = await response.json();
+            addMessage(data.response, false);
+        } catch (error) {
+            console.error('Error:', error);
+            addMessage("Sorry. The server is currently down. Please try again later.", false);
+        }
     });
 
     closeChat.addEventListener('click', () => {
@@ -32,44 +42,28 @@ document.addEventListener('DOMContentLoaded', function() {
             addMessage(message, true);
             chatInput.value = '';
 
-            // Send message to backend
-            fetch('/chat/', {
+            // Call the FastAPI chat endpoint
+            fetch(`${API_URL}/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
                 },
-                body: JSON.stringify({ message: message })
+                body: JSON.stringify({ 
+                    text: message 
+                })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
             .then(data => {
-                if (data.status === 'success') {
-                    addMessage(data.response);
-                } else {
-                    addMessage('Sorry, something went wrong.');
-                }
+                addMessage(data.response);
             })
             .catch(error => {
                 console.error('Error:', error);
                 addMessage('Sorry, something went wrong.');
             });
         }
-    }
-
-    // Helper function to get CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
     }
 
     sendMessage.addEventListener('click', sendChatMessage);
