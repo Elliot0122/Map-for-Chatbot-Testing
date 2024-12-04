@@ -189,11 +189,7 @@
             map = new google.maps.Map(document.getElementById('map'), {
                 center: defaultLocation,
                 zoom: 16,
-                disableDefaultUI: true,
-                zoomControl: true,
-                zoomControlOptions: {
-                    position: google.maps.ControlPosition.RIGHT_BOTTOM
-                }
+                disableDefaultUI: true
             });
 
             marker = new google.maps.Marker({
@@ -614,7 +610,6 @@
 
                     // Display simplified route options
                     const resultsDiv = document.getElementById('directions-results');
-                    resultsDiv.innerHTML = '<div class="suggested-routes-header">Suggested routes:</div>';
 
                     result.routes.forEach((route, index) => {
                         const leg = route.legs[0];
@@ -729,5 +724,26 @@
     <!-- Load the Google Maps JavaScript API with Places library -->
     <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initMap" 
             async defer></script>
+
+    <!-- Chat Interface -->
+    <div id="chat-icon" class="chat-icon">
+        <i class="fas fa-comments"></i>
+    </div>
+
+    <div id="chat-container" class="chat-container hidden">
+        <div class="chat-header">
+            <span>Chat Assistant</span>
+            <button id="close-chat">×</button>
+        </div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-container">
+            <input type="text" id="chat-input" placeholder="Type your message...">
+            <button id="send-message">Send</button>
+        </div>
+    </div>
+
+    <!-- Add these before closing body tag -->
+    <link rel="stylesheet" href="{% static 'maps_app/css/chat.css' %}">
+    <script src="{% static 'maps_app/js/chat.js' %}"></script>
 </body>
 </html> 
