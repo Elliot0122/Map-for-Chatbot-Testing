@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Google Maps Example</title>
     {% load static %}
+    <link rel="icon" type="image/x-icon" href="{% static 'maps_app/favicon.ico' %}">
     <link rel="stylesheet" href="{% static 'maps_app/styles.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'maps_app/css/chat.css' %}">
+    <script src="{% static 'maps_app/js/chat.js' %}"></script>
 </head>
 <body>
     <div class="search-container">
@@ -202,6 +205,15 @@
             const searchInput = document.getElementById('search-input');
             const autocompleteResults = document.getElementById('autocomplete-results');
             
+            searchInput.addEventListener('focus', function() {
+                const message = 'Alright. I am entering the location';
+                if (typeof sendChatMessage === 'function') {
+                    sendChatMessage(message, false);
+                } else {
+                    console.warn('sendChatMessage function not found');
+                }
+            });
+
             const searchBox = new google.maps.places.SearchBox(searchInput);
 
             // Listen for the event when the user selects a prediction
@@ -288,11 +300,24 @@
         }
 
         // Keep the event listeners as they are
-        document.getElementById('search-button').addEventListener('click', performSearch);
+        document.getElementById('search-button').addEventListener('click', () => {
+            const searchInput = document.getElementById('search-input');
+            const searchText = searchInput.value.trim();
+            
+            if (searchText) {  // Only perform search if there's text
+                sendChatMessage('OK. I initiated the search');
+                performSearch();
+            }
+        });
         
         document.getElementById('search-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                performSearch();
+                const searchText = e.target.value.trim();
+                
+                if (searchText) {  // Only perform search if there's text
+                    sendChatMessage('OK. I initiated the search');
+                    performSearch();
+                }
             }
         });
 
@@ -360,6 +385,7 @@
                             map.setZoom(16);
                             marker.setPosition(place.geometry.location);
                             marker.setTitle(place.name);
+                            sendChatMessage('OK. I choosed the location from the search results');
                         });
                     }
                 });
@@ -555,6 +581,7 @@
                     document.querySelector('.mode-button.active').classList.remove('active');
                     button.classList.add('active');
                     calculateAndDisplayRoute();
+                    sendChatMessage('OK. I selected the travel mode');
                 });
             });
 
@@ -633,6 +660,8 @@
                             });
                             routeDiv.classList.add('selected');
                             directionsRenderer.setRouteIndex(index);
+
+                            sendChatMessage(`OK. I Selected the route from the search results`);
                         });
 
                         resultsDiv.appendChild(routeDiv);
@@ -686,10 +715,53 @@
             event.target.classList.add('active');
         }
 
-        // Add click event listener to share button
-        document.addEventListener('DOMContentLoaded', function() {
+        // Add this helper function at the start of your script
+        function initChatListeners() {
+            // Add click event listener to share button
             const shareButton = document.querySelector('.action-button i.fas.fa-share-alt').parentElement;
-            shareButton.addEventListener('click', showShareModal);
+            shareButton.addEventListener('click', () => {
+                showShareModal();
+                if (typeof sendChatMessage === 'function') {
+                    sendChatMessage(`OK. I clicked the share button`);
+                }
+            });
+
+            // Add social sharing event listeners
+            const whatsappButton = document.querySelector('.share-option i.fab.fa-whatsapp').parentElement;
+            const twitterButton = document.querySelector('.share-option i.fab.fa-twitter').parentElement;
+            const gmailButton = document.querySelector('.share-option i.fas.fa-envelope').parentElement;
+            
+            whatsappButton.addEventListener('click', () => {
+                shareViaWhatsApp();
+                if (typeof sendChatMessage === 'function') {
+                    sendChatMessage('OK. I selected Whatsapp to share location');
+                }
+            });
+            
+            twitterButton.addEventListener('click', () => {
+                shareViaTwitter(); 
+                if (typeof sendChatMessage === 'function') {
+                    sendChatMessage('OK. I selected twitter to share location');
+                }
+            });
+            
+            gmailButton.addEventListener('click', () => {
+                shareViaGmail();
+                if (typeof sendChatMessage === 'function') {
+                    sendChatMessage('OK. I selected Gmail to share location'); 
+                }
+            });
+        }
+
+        // Replace your DOMContentLoaded event listeners with this
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait for chat.js to load
+            const checkChatInterval = setInterval(() => {
+                if (typeof sendChatMessage === 'function') {
+                    clearInterval(checkChatInterval);
+                    initChatListeners();
+                }
+            }, 100);
         });
 
         // Add social sharing functions
@@ -708,17 +780,6 @@
             const subject = document.getElementById('share-place-name').textContent;
             window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`, '_blank');
         }
-
-        // Add click event listeners to share options
-        document.addEventListener('DOMContentLoaded', function() {
-            const whatsappButton = document.querySelector('.share-option i.fab.fa-whatsapp').parentElement;
-            const twitterButton = document.querySelector('.share-option i.fab.fa-twitter').parentElement;
-            const gmailButton = document.querySelector('.share-option i.fas.fa-envelope').parentElement;
-            
-            whatsappButton.addEventListener('click', shareViaWhatsApp);
-            twitterButton.addEventListener('click', shareViaTwitter);
-            gmailButton.addEventListener('click', shareViaGmail);
-        });
     </script>
 
     <!-- Load the Google Maps JavaScript API with Places library -->
@@ -743,9 +804,5 @@
             </button>
         </div>
     </div>
-
-    <!-- Add these before closing body tag -->
-    <link rel="stylesheet" href="{% static 'maps_app/css/chat.css' %}">
-    <script src="{% static 'maps_app/js/chat.js' %}"></script>
 </body>
 </html> 

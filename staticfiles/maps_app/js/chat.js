@@ -68,14 +68,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             const response = await fetch(`${API_URL}/init`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             addMessage(data.response, false);
         } catch (error) {
-            console.error('Init error:', error);
-            addMessage("Sorry, the chat server is currently unavailable. Please try again later.", false);
+            console.error('Error:', error);
+            addMessage("Sorry. The server is currently down. Please try again later.", false);
         }
     });
 
